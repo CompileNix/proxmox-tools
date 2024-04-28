@@ -28,7 +28,7 @@ This tool is designed to automate the process of creating snapshots for multiple
 
 **Note:** This tool assumes that you have already set up your Proxmox server and have the necessary credentials to access it.
 
-### new-snapshots.py
+### remove-snapshots.py
 
 **Proxmox Snapshot Remover Tool**
 

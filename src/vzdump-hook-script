@@ -1,0 +1,19 @@
+#!/bin/bash
+
+# job-init
+# job-start
+# job-end
+# job-abort
+# backup-start
+# backup-end
+# backup-abort
+# log-end
+# pre-stop
+# pre-restart
+# post-restart
+
+if [ "$1" == "job-end" ]; then
+    touch /tmp/backup_ready_for_pickup
+fi
+
+exit 0

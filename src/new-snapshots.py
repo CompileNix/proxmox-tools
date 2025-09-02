@@ -11,10 +11,13 @@ import proxmoxer.tools
 from rich.progress import BarColumn, MofNCompleteColumn, TaskProgressColumn, TextColumn, TimeElapsedColumn, TimeRemainingColumn
 from rich.progress import Progress
 from rich.console import Console
+from rich import print as rprint
+from rich.pretty import pprint
 console = Console()
 from rich.traceback import install
 install(show_locals=False)
 from prompt_toolkit.shortcuts import checkboxlist_dialog
+
 
 def exit_gracefully(*args):
     print(f"\nExiting requested by process signal INT or TERM")
@@ -28,7 +31,7 @@ user = os.environ.get('PROXMOX_USER')
 realm = os.environ.get('PROXMOX_REALM')
 token_name = os.environ.get('PROXMOX_TOKEN_NAME')
 token_value = os.environ.get('PROXMOX_TOKEN_VALUE')
-proxmox = proxmoxer.ProxmoxAPI(server, backend='https', user=f'{user}@{realm}', token_name=token_name, token_value=token_value, verify_ssl=True)
+proxmox = proxmoxer.ProxmoxAPI(server, backend='https', user=f'{user}@{realm}', token_name=token_name, token_value=token_value, verify_ssl=True, timeout=None)
 
 
 def create_snapshot(node, vm, blocking=True):
@@ -42,7 +45,7 @@ def create_snapshot(node, vm, blocking=True):
     print(f"create snapshot for {vm['name']}...")
     taskid = proxmox.nodes(node["node"]).qemu(vm['vmid']).snapshot.post(**params)
     if blocking:
-        return proxmoxer.tools.Tasks.blocking_status(proxmox, taskid, timeout=900)
+        return proxmoxer.tools.Tasks.blocking_status(proxmox, taskid, timeout=3600)
     else:
         return taskid
 
@@ -75,7 +78,7 @@ with Progress(
             })
     if len(vms) > 0:
         vms = sorted(vms, key=lambda x: x['vm']['vmid'])
-    print(f'found {len(vms)} total snapshots')
+    rprint(f'found {len(vms)} total vm\'s')
 
 if len(vms) == 0:
     sys.exit(0)
@@ -87,22 +90,29 @@ for vm in vms:
     item = f'{vm["vmid"]}: {vm["name"]}'
     items.append((item, item))
     defaults.append(item)
-result = checkboxlist_dialog(
-    title="Select VMs:",
-    text="Please select VM's for which you want to create a snapshot, using space bar:",
-    values=items,
-    default_values=defaults,
-).run()
-if not result:
-    sys.exit(0)
+# result = checkboxlist_dialog(
+#     title="Select VMs:",
+#     text="Please select VM's for which you want to create a snapshot, using space bar:",
+#     values=items,
+#     default_values=defaults,
+# ).run()
+    rprint(f'- {vm["vmid"]} -> {vm["name"]}')
+result = input('Please select VM\'s (id), using space separator. Or press enter to select all VMs: ')
+# if not result:
+#     sys.exit(0)
 selected_vms = []
-for vm in vms:
-    (node, vm) = vm.values()
-    if f'{vm["vmid"]}: {vm["name"]}' in result:
-        selected_vms.append({
-            'node': node,
-            'vm': vm,
-        })
+if not result:
+    selected_vms = vms
+else:
+    result_split = result.split(' ')
+    for vm in vms:
+        (node, vm) = vm.values()
+        # if f'{vm["vmid"]}: {vm["name"]}' in result:
+        if str(vm["vmid"]) in result_split:
+            selected_vms.append({
+                'node': node,
+                'vm': vm,
+            })
 
 with Progress(
     TextColumn("[progress.description]{task.description}"),
